@@ -12,6 +12,7 @@ using namespace std;
 
 GLfloat cam[] = {0, 0, 70};
 GLfloat camAngle = M_PI / 180 * 270;
+GLfloat pts[7][3] = {{-20, -18, 0}, {-11, 7, 0}, {-5, -5, 0}, {0, 0, 0}, {5, 5, 0}, {8, 18, 0}, {26, -3, 0}};
 
 typedef struct pointstruct
 {
@@ -169,8 +170,6 @@ void display()
         {
             glColor3f(1.0, 1.0, 1.0);
 
-            point minx = get(ctrlpoints, 3);
-            point maxx = get(ctrlpoints, 6);
             GLfloat pts[7][3] = {};
             int k = 0;
             list<point>::iterator it;
@@ -180,10 +179,6 @@ void display()
                 pts[k][1] = it->y;
                 pts[k++][2] = it->z;
             }
-            // pts[6][0] = pts[0][0];
-            // pts[6][1] = pts[0][1];
-            // pts[6][2] = pts[0][2];
-
             glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 7, &pts[0][0]);
             glEnable(GL_MAP1_VERTEX_3);
             glBegin(GL_LINE_STRIP);
@@ -203,9 +198,37 @@ void display()
         glPopMatrix();
         break;
     case 2:
+        glColor3f(1.0, 1.0, 1.0);
+
+        glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 4, &pts[0][0]);
+        glEnable(GL_MAP1_VERTEX_3);
+        glBegin(GL_LINE_STRIP);
+        for (int i = 0; i <= 30; i++)
+        {
+            glEvalCoord1f((GLfloat)i / 30);
+        }
+        glEnd();
+
+        glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 4, &pts[3][0]);
+        glEnable(GL_MAP1_VERTEX_3);
+        glBegin(GL_LINE_STRIP);
+        for (int i = 0; i <= 30; i++)
+        {
+            glEvalCoord1f((GLfloat)i / 30);
+        }
+        glEnd();
+
+        glPushMatrix();
+        glPointSize(5.0);
+        glColor3f(0, 0, 1);
+        glBegin(GL_POINTS);
+        for (int i = 0; i < 7; i++)
+            glVertex3f(pts[i][0], pts[i][1], pts[i][2]);
+        glEnd();
+        glPopMatrix();
         break;
-    case 3:
-        break;
+        // case 3:
+        //     break;
     }
 
     glutSwapBuffers();
@@ -221,6 +244,7 @@ void menu(int option)
 
 bool leftButtonState = 0;
 point *clickedpoint;
+int clickedpoint2 = -1;
 float d = 2; // maximum distance between clicking and point
 
 void MouseFunc(int button, int state,
@@ -266,11 +290,32 @@ void MouseFunc(int button, int state,
                 k++;
             }
         }
+        // merge these parts because its disgusting
+        if (menuoption == 2 && clickedpoint2 == -1)
+        {
+            for (int i = 0; i < 7; i++)
+            {
+                point tmppoint;
+                tmppoint.x = pts[i][0];
+                tmppoint.y = pts[i][1];
+                tmppoint.z = pts[i][2];
+
+                // for every point find if user clicked nearby
+                if (FindDistance(tmppoint, x / 8.0 - 50, 50 - y / 8.0) < d)
+                {
+                    cout << "CLOSE ENOUGH at point no " << i << endl;
+                    leftButtonState = 1; // clicked
+                    clickedpoint2 = i;
+                    break;
+                }
+            }
+        }
     }
     else
     {
         leftButtonState = 0;
         clickedpoint = nullptr;
+        clickedpoint2 = -1;
     }
 
     glutPostRedisplay();
@@ -280,8 +325,54 @@ void MouseDrag(int x, int y)
 {
     if (leftButtonState)
     {
-        clickedpoint->x = x / 8.0 - 50;
-        clickedpoint->y = 50 - y / 8.0;
+        // also merge :D
+        if (menuoption == 2)
+        {
+            if (clickedpoint2 < 2 || clickedpoint2 > 4)
+            { // moves freely
+                pts[clickedpoint2][0] = x / 8.0 - 50;
+                pts[clickedpoint2][1] = 50 - y / 8.0;
+            }
+            else if (clickedpoint2 == 2)
+            { // Dependent point (2-4)
+                pts[clickedpoint2][0] = x / 8.0 - 50;
+                pts[clickedpoint2][1] = 50 - y / 8.0;
+
+                // move the other dependent point
+                // 2* center - other dependent
+                pts[clickedpoint2 + 2][0] = (2 * pts[clickedpoint2 + 1][0]) - pts[clickedpoint2][0];
+                pts[clickedpoint2 + 2][1] = (2 * pts[clickedpoint2 + 1][1]) - pts[clickedpoint2][1];
+            }
+            else if (clickedpoint2 == 4)
+            {
+                pts[clickedpoint2][0] = x / 8.0 - 50;
+                pts[clickedpoint2][1] = 50 - y / 8.0;
+
+                // move the other dependent point
+                // 2* center - other dependent
+                pts[clickedpoint2 - 2][0] = (2 * pts[clickedpoint2 - 1][0]) - pts[clickedpoint2][0];
+                pts[clickedpoint2 - 2][1] = (2 * pts[clickedpoint2 - 1][1]) - pts[clickedpoint2][1];
+            }
+            else if (clickedpoint2 == 3)
+            { // Connect point
+
+                // move the dependent points around it based on the change in location
+                pts[clickedpoint2 - 1][0] = pts[clickedpoint2 - 1][0] + (x / 8.0 - 50 - pts[clickedpoint2][0]);
+                pts[clickedpoint2 - 1][1] = pts[clickedpoint2 - 1][1] + (50 - y / 8.0 - pts[clickedpoint2][1]);
+
+                pts[clickedpoint2 + 1][0] = pts[clickedpoint2 + 1][0] + (x / 8.0 - 50 - pts[clickedpoint2][0]);
+                pts[clickedpoint2 + 1][1] = pts[clickedpoint2 + 1][1] + (50 - y / 8.0 - pts[clickedpoint2][1]);
+
+                // move itself
+                pts[clickedpoint2][0] = x / 8.0 - 50;
+                pts[clickedpoint2][1] = 50 - y / 8.0;
+            }
+        }
+        else
+        {
+            clickedpoint->x = x / 8.0 - 50;
+            clickedpoint->y = 50 - y / 8.0;
+        }
     }
     glutPostRedisplay();
 }
