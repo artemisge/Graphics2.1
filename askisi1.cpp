@@ -165,6 +165,42 @@ void display()
         glPopMatrix();
         break;
     case 1:
+        if (ctrlpoints.size() == 7)
+        {
+            glColor3f(1.0, 1.0, 1.0);
+
+            point minx = get(ctrlpoints, 3);
+            point maxx = get(ctrlpoints, 6);
+            GLfloat pts[7][3] = {};
+            int k = 0;
+            list<point>::iterator it;
+            for (it = ctrlpoints.begin(); it != ctrlpoints.end(); ++it)
+            {
+                pts[k][0] = it->x;
+                pts[k][1] = it->y;
+                pts[k++][2] = it->z;
+            }
+            // pts[6][0] = pts[0][0];
+            // pts[6][1] = pts[0][1];
+            // pts[6][2] = pts[0][2];
+
+            glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 7, &pts[0][0]);
+            glEnable(GL_MAP1_VERTEX_3);
+            glBegin(GL_LINE_STRIP);
+            for (int i = 0; i <= 30; i++)
+            {
+                glEvalCoord1f((GLfloat)i / 30);
+            }
+            glEnd();
+        }
+        glPushMatrix();
+        glPointSize(5.0);
+        glColor3f(0, 0, 1);
+        glBegin(GL_POINTS);
+        for (const point &point : ctrlpoints)
+            glVertex3f(point.x, point.y, point.z);
+        glEnd();
+        glPopMatrix();
         break;
     case 2:
         break;
@@ -179,6 +215,7 @@ void display()
 void menu(int option)
 {
     menuoption = option;
+    ctrlpoints.clear();
     glutPostRedisplay();
 }
 
@@ -192,13 +229,19 @@ void MouseFunc(int button, int state,
     // CONTROL POINTS
     if (button == GLUT_LEFT_BUTTON && state == GLUT_UP)
     {
-        if (ctrlpoints.size() < 7)
+        if ((menuoption == 0 && ctrlpoints.size() < 7) || (menuoption == 1 && ctrlpoints.size() < 6))
         {
             point newpoint;
             newpoint.x = x / 8.0 - 50;
             newpoint.y = 50 - y / 8.0;
             newpoint.z = 0;
             ctrlpoints.push_back(newpoint);
+            if (ctrlpoints.size() == 6 && menuoption == 1)
+            {
+                // make last point to be the same as the first one
+                point lastpoint = get(ctrlpoints, 0);
+                ctrlpoints.push_back(lastpoint);
+            }
         }
     }
 
@@ -215,13 +258,13 @@ void MouseFunc(int button, int state,
                 if (FindDistance(*it, x / 8.0 - 50, 50 - y / 8.0) < d)
                 {
                     cout << "CLOSE ENOUGH at point no " << k << endl;
+                    leftButtonState = 1; // clicked
                     clickedpoint = &*it; // iterators have the value but are not the same as the pointer
                     // therefore we have to reference and then dereferenec
                     break;
                 }
                 k++;
             }
-            leftButtonState = 1; // clicked
         }
     }
     else
@@ -279,11 +322,11 @@ int main(int argc, char **argv)
     glutMotionFunc(MouseDrag);
 
     glutCreateMenu(menu);
-    glutAddMenuEntry("Κυβική καμπύλη παρεμβολής", 0);
-    glutAddMenuEntry("Καμπύλη Bezier: 1 τμήμα/6ου βαθμού", 1);
+    glutAddMenuEntry("Cubic Interpolation Curve", 0);
+    glutAddMenuEntry("Bezier Curve: 1 part/6th degree", 1);
 
-    glutAddMenuEntry("Καμπύλη Bezier: 2 κυβικά τμήματα", 2);
-    glutAddMenuEntry("Δικυβική επιφάνεια παρεμβολής", 3);
+    glutAddMenuEntry("Bezier Curve: 2 cubic parts", 2);
+    glutAddMenuEntry("Bicubic interpolation surface", 3);
 
     glutAttachMenu(GLUT_RIGHT_BUTTON);
 
