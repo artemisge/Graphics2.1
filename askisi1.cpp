@@ -80,6 +80,12 @@ point get(list<point> _list, int _i)
     return *it;
 }
 
+float FindDistance(point pnt, float x, float y)
+{
+    return sqrt(pow(x - pnt.x, 2) +
+                pow(y - pnt.y, 2) * 1.0);
+}
+
 int menuoption = 0; //default
 void display()
 {
@@ -176,6 +182,10 @@ void menu(int option)
     glutPostRedisplay();
 }
 
+bool leftButtonState = 0;
+point *clickedpoint;
+float d = 2; // maximum distance between clicking and point
+
 void MouseFunc(int button, int state,
                int x, int y)
 {
@@ -192,6 +202,44 @@ void MouseFunc(int button, int state,
         }
     }
 
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
+    {
+        // if we have 7 points and we havent clicked one already
+        if (ctrlpoints.size() == 7 && clickedpoint == nullptr)
+        {
+            int k = 0;
+            list<point>::iterator it;
+            for (it = ctrlpoints.begin(); it != ctrlpoints.end(); ++it)
+            {
+                // for every point find if user clicked nearby
+                if (FindDistance(*it, x / 8.0 - 50, 50 - y / 8.0) < d)
+                {
+                    cout << "CLOSE ENOUGH at point no " << k << endl;
+                    clickedpoint = &*it; // iterators have the value but are not the same as the pointer
+                    // therefore we have to reference and then dereferenec
+                    break;
+                }
+                k++;
+            }
+            leftButtonState = 1; // clicked
+        }
+    }
+    else
+    {
+        leftButtonState = 0;
+        clickedpoint = nullptr;
+    }
+
+    glutPostRedisplay();
+}
+int n = 0;
+void MouseDrag(int x, int y)
+{
+    if (leftButtonState)
+    {
+        clickedpoint->x = x / 8.0 - 50;
+        clickedpoint->y = 50 - y / 8.0;
+    }
     glutPostRedisplay();
 }
 
@@ -228,6 +276,7 @@ int main(int argc, char **argv)
     glutIdleFunc(idleFunc);
     glutSpecialFunc(SpecialKeyHandler);
     glutMouseFunc(MouseFunc);
+    glutMotionFunc(MouseDrag);
 
     glutCreateMenu(menu);
     glutAddMenuEntry("Κυβική καμπύλη παρεμβολής", 0);
