@@ -40,36 +40,62 @@ void idleFunc()
     //glutPostRedisplay();
 }
 
-//polynomial interpretation for N points
-float polyint(float points[][3], float x, int N)
+/*
+	Modifies the given control points so that when berzier is used,
+	it will have the effect of a polynomial curve of the initial control points.
+*/
+// Polynomial to Bezier transformation matrix
+float polyToBezier[4][4] = {
+    {1, 0, 0, 0},
+    {-0.833, 3, -1.5, 0.333},
+    {0.333, -1.5, 3, -0.8333},
+    {0, 0, 0, 1}};
+void polynomialToBezierControlPoints(float bezier_points[4][3], float ctrlPoints[4][3])
 {
-    float y;
-
-    float num = 1.0, den = 1.0;
-    float sum = 0.0;
-
-    for (int i = 0; i < N; ++i)
+    // Multiplies the control points with the proper matrix to convert them from polynomial to bezier
+    for (int i = 0; i < 4; i++)
     {
-        num = den = 1.0;
-        for (int j = 0; j < N; ++j)
+        for (int j = 0; j < 3; j++)
         {
-            if (j == i)
-                continue;
-
-            num = num * (x - points[j][0]); //x - xj
+            bezier_points[i][j] = 0; // Set initial value of every cell
+            for (int k = 0; k < 4; k++)
+            {
+                bezier_points[i][j] += polyToBezier[i][k] * ctrlPoints[k][j];
+            }
         }
-        for (int j = 0; j < N; ++j)
-        {
-            if (j == i)
-                continue;
-            den = den * (points[i][0] - points[j][0]); //xi - xj
-        }
-        sum += num / den * points[i][1];
     }
-    y = sum;
-
-    return y;
 }
+
+// //polynomial interpretation for N points
+// float polyint(float points[][3], float x, int N)
+// {
+//     float y;
+
+//     float num = 1.0, den = 1.0;
+//     float sum = 0.0;
+
+//     for (int i = 0; i < N; ++i)
+//     {
+//         num = den = 1.0;
+//         for (int j = 0; j < N; ++j)
+//         {
+//             if (j == i)
+//                 continue;
+
+//             num = num * (x - points[j][0]); //x - xj
+//         }
+//         for (int j = 0; j < N; ++j)
+//         {
+//             if (j == i)
+//                 continue;
+//             den = den * (points[i][0] - points[j][0]); //xi - xj
+//         }
+//         sum += num / den * points[i][1];
+//     }
+//     y = sum;
+
+//     return y;
+// }
 
 point get(list<point> _list, int _i)
 {
@@ -105,53 +131,77 @@ void display()
         if (ctrlpoints.size() == 7)
         {
             glColor3f(1.0, 1.0, 1.0);
-            glBegin(GL_LINE_STRIP);
-            point minx = get(ctrlpoints, 0);
-            point maxx = get(ctrlpoints, 3);
-            for (int i = minx.x; i <= maxx.x; i++)
+
+            GLfloat pts[7][3] = {};
+            int k = 0;
+            list<point>::iterator it;
+            for (it = ctrlpoints.begin(); it != ctrlpoints.end(); ++it)
             {
-                float x = (float)i;
-
-                list<point> tmpctrlpoints;
-                tmpctrlpoints.assign(next(ctrlpoints.begin(), 0), next(ctrlpoints.begin(), 4));
-
-                float tmp2ctrlp[4][3];
-                int k = 0;
-                for (point const &i : tmpctrlpoints)
-                {
-                    tmp2ctrlp[k][0] = i.x;
-                    tmp2ctrlp[k][1] = i.y;
-                    tmp2ctrlp[k][2] = i.z;
-                    k++;
-                }
-                float y = polyint(tmp2ctrlp, x, 4);
-                glVertex2f(x, y);
+                pts[k][0] = it->x;
+                pts[k][1] = it->y;
+                pts[k++][2] = it->z;
+            }
+            GLfloat pts1[4][3];
+            for (int i = 0; i < 4; i++)
+            {
+                pts1[i][0] = pts[i][0];
+                pts1[i][1] = pts[i][1];
+                pts1[i][2] = pts[i][2];
+            }
+            GLfloat pts2[4][3];
+            for (int i = 3; i < 7; i++)
+            {
+                pts2[i-3][0] = pts[i][0];
+                pts2[i-3][1] = pts[i][1];
+                pts2[i-3][2] = pts[i][2];
+            }
+            GLfloat bezierpts[4][3];
+            polynomialToBezierControlPoints(bezierpts, pts1);
+            glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 4, &bezierpts[0][0]);
+            glEnable(GL_MAP1_VERTEX_3);
+            glBegin(GL_LINE_STRIP);
+            for (int i = 0; i <= 30; i++)
+            {
+                glEvalCoord1f((GLfloat)i / 30);
             }
             glEnd();
+            GLfloat bezierpts2[4][3];
             glColor3f(1, 0, 1);
+
+            polynomialToBezierControlPoints(bezierpts2, pts2);
+            glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 4, &bezierpts2[0][0]);
+            glEnable(GL_MAP1_VERTEX_3);
             glBegin(GL_LINE_STRIP);
-            minx = get(ctrlpoints, 3);
-            maxx = get(ctrlpoints, 6);
-            for (int i = minx.x; i <= maxx.x; i++)
+            for (int i = 0; i <= 30; i++)
             {
-                float x = (float)i;
-
-                list<point> tmpctrlpoints;
-                tmpctrlpoints.assign(next(ctrlpoints.begin(), 3), next(ctrlpoints.begin(), 7));
-
-                float tmp2ctrlp[4][3];
-                int k = 0;
-                for (point const &i : tmpctrlpoints)
-                {
-                    tmp2ctrlp[k][0] = i.x;
-                    tmp2ctrlp[k][1] = i.y;
-                    tmp2ctrlp[k][2] = i.z;
-                    k++;
-                }
-                float y = polyint(tmp2ctrlp, x, 4);
-                glVertex2f(x, y);
+                glEvalCoord1f((GLfloat)i / 30);
             }
             glEnd();
+
+            // glColor3f(1, 0, 1);
+            // glBegin(GL_LINE_STRIP);
+            // minx = get(ctrlpoints, 3);
+            // maxx = get(ctrlpoints, 6);
+            // for (int i = minx.x; i <= maxx.x; i++)
+            // {
+            //     float x = (float)i;
+
+            //     list<point> tmpctrlpoints;
+            //     tmpctrlpoints.assign(next(ctrlpoints.begin(), 3), next(ctrlpoints.begin(), 7));
+
+            //     float tmp2ctrlp[4][3];
+            //     int k = 0;
+            //     for (point const &i : tmpctrlpoints)
+            //     {
+            //         tmp2ctrlp[k][0] = i.x;
+            //         tmp2ctrlp[k][1] = i.y;
+            //         tmp2ctrlp[k][2] = i.z;
+            //         k++;
+            //     }
+            //     float y = polyint(tmp2ctrlp, x, 4);
+            //     glVertex2f(x, y);
+            // }
+            // glEnd();
         }
 
         // PLOT POINTS
@@ -227,8 +277,41 @@ void display()
         glEnd();
         glPopMatrix();
         break;
-        // case 3:
-        //     break;
+    case 3:
+        int SURFACE_LINES = 10;
+        float const EDGES_X = 0;   // The x coordinate of the square that edges belong to (Y=Z, X=EDGES_X)
+        float const EDGES_YZ = 30; // The maximum y and z axis values of the square edges belong to (max Y = max Z = EDGES_YZ)
+        float const OTHER_X = 20;  // The x coordinate of the square that the rest control points belong to
+        float ctrlPointsMode4[4][4][3] = {
+            {{EDGES_X, EDGES_YZ / 2, EDGES_YZ}, {OTHER_X, EDGES_YZ / 2, 5}, {OTHER_X, EDGES_YZ / 2, -5}, {EDGES_X, EDGES_YZ / 2, -EDGES_YZ / 2}},
+            {{OTHER_X, 5, EDGES_YZ / 2}, {OTHER_X, 5, 5}, {OTHER_X, 5, -5}, {OTHER_X, 5, -EDGES_YZ / 2}},
+            {{OTHER_X, -5, EDGES_YZ / 2}, {OTHER_X, -5, 5}, {OTHER_X, -5, -5}, {OTHER_X, -5, -EDGES_YZ / 2}},
+            {{EDGES_X, -EDGES_YZ / 2, EDGES_YZ}, {OTHER_X, -EDGES_YZ / 2, 5}, {OTHER_X, -EDGES_YZ / 2, -5}, {EDGES_X, -EDGES_YZ / 2, -EDGES_YZ / 2}}};
+        glColor3f(0, 0, 0);
+        glMap2f(GL_MAP2_VERTEX_3, 0.0, 1.0, 3, 4, 0.0, 1.0, 12, 4, &ctrlPointsMode4[0][0][0]);
+        glEnable(GL_MAP2_VERTEX_3);
+        // Draw surface
+        for (int j = 0; j <= SURFACE_LINES; j++)
+        {
+            glBegin(GL_LINE_STRIP);
+            for (int i = 0; i <= SURFACE_LINES; i++)
+                glEvalCoord2f((float)i / SURFACE_LINES, (float)j / SURFACE_LINES);
+            glEnd();
+            glBegin(GL_LINE_STRIP);
+            for (int i = 0; i <= SURFACE_LINES; i++)
+                glEvalCoord2f((float)j / SURFACE_LINES, (float)i / SURFACE_LINES);
+            glEnd();
+        }
+        // // Draw control points
+        // glPushMatrix();
+        // glPointSize(5.0);
+        // glColor3f(0, 0, 1);
+        // glBegin(GL_POINTS);
+        // for (int i = 0; i < 7; i++)
+        //     glVertex3f(pts[i][0], pts[i][1], pts[i][2]);
+        // glEnd();
+        // glPopMatrix();
+        break;
     }
 
     glutSwapBuffers();
