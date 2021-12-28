@@ -45,6 +45,7 @@ void idleFunc()
 	it will have the effect of a polynomial curve of the initial control points.
 */
 // Polynomial to Bezier transformation matrix
+// Matrix multiplication Mb^-1 * Mi
 float polyToBezier[4][4] = {
     {1, 0, 0, 0},
     {-0.833, 3, -1.5, 0.333},
@@ -65,37 +66,6 @@ void polynomialToBezierControlPoints(float bezier_points[4][3], float ctrlPoints
         }
     }
 }
-
-// //polynomial interpretation for N points
-// float polyint(float points[][3], float x, int N)
-// {
-//     float y;
-
-//     float num = 1.0, den = 1.0;
-//     float sum = 0.0;
-
-//     for (int i = 0; i < N; ++i)
-//     {
-//         num = den = 1.0;
-//         for (int j = 0; j < N; ++j)
-//         {
-//             if (j == i)
-//                 continue;
-
-//             num = num * (x - points[j][0]); //x - xj
-//         }
-//         for (int j = 0; j < N; ++j)
-//         {
-//             if (j == i)
-//                 continue;
-//             den = den * (points[i][0] - points[j][0]); //xi - xj
-//         }
-//         sum += num / den * points[i][1];
-//     }
-//     y = sum;
-
-//     return y;
-// }
 
 point get(list<point> _list, int _i)
 {
@@ -151,9 +121,9 @@ void display()
             GLfloat pts2[4][3];
             for (int i = 3; i < 7; i++)
             {
-                pts2[i-3][0] = pts[i][0];
-                pts2[i-3][1] = pts[i][1];
-                pts2[i-3][2] = pts[i][2];
+                pts2[i - 3][0] = pts[i][0];
+                pts2[i - 3][1] = pts[i][1];
+                pts2[i - 3][2] = pts[i][2];
             }
             GLfloat bezierpts[4][3];
             polynomialToBezierControlPoints(bezierpts, pts1);
@@ -288,7 +258,21 @@ void display()
             {{OTHER_X, -5, EDGES_YZ / 2}, {OTHER_X, -5, 5}, {OTHER_X, -5, -5}, {OTHER_X, -5, -EDGES_YZ / 2}},
             {{EDGES_X, -EDGES_YZ / 2, EDGES_YZ}, {OTHER_X, -EDGES_YZ / 2, 5}, {OTHER_X, -EDGES_YZ / 2, -5}, {EDGES_X, -EDGES_YZ / 2, -EDGES_YZ / 2}}};
         glColor3f(0, 0, 0);
-        glMap2f(GL_MAP2_VERTEX_3, 0.0, 1.0, 3, 4, 0.0, 1.0, 12, 4, &ctrlPointsMode4[0][0][0]);
+
+        float ctrlpointsbezier[4][4][3];
+        for (int i = 0; i < 4; i++)
+        {
+            float tmparray[4][3];
+            polynomialToBezierControlPoints(tmparray, ctrlPointsMode4[i]);
+            for (int j = 0; j < 4; j++)
+            {
+                ctrlpointsbezier[i][j][0] = tmparray[j][0];
+                ctrlpointsbezier[i][j][1] = tmparray[j][1];
+                ctrlpointsbezier[i][j][2] = tmparray[j][2];
+            }
+        }
+
+        glMap2f(GL_MAP2_VERTEX_3, 0.0, 1.0, 3, 4, 0.0, 1.0, 12, 4, &ctrlpointsbezier[0][0][0]);
         glEnable(GL_MAP2_VERTEX_3);
         // Draw surface
         for (int j = 0; j <= SURFACE_LINES; j++)
@@ -303,14 +287,19 @@ void display()
             glEnd();
         }
         // // Draw control points
-        // glPushMatrix();
-        // glPointSize(5.0);
-        // glColor3f(0, 0, 1);
-        // glBegin(GL_POINTS);
-        // for (int i = 0; i < 7; i++)
-        //     glVertex3f(pts[i][0], pts[i][1], pts[i][2]);
-        // glEnd();
-        // glPopMatrix();
+        glPushMatrix();
+        glPointSize(5.0);
+        glColor3f(0, 0, 1);
+        glBegin(GL_POINTS);
+        for (int i = 0; i < 4; i++)
+        {
+            for (int j = 0; j < 4; j++)
+            {
+                glVertex3f(ctrlPointsMode4[i][j][0], ctrlPointsMode4[i][j][1], ctrlPointsMode4[i][j][2]);
+            }
+        }
+        glEnd();
+        glPopMatrix();
         break;
     }
 
